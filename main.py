@@ -22,7 +22,7 @@ def quatToEuler(q):
 
     return euler
 
-def quatListToEuler(qs):
+def quatListToEulerArrays(qs):
     euler = np.ndarray(shape=(3, len(qs)), dtype=float)
 
     for (i, q) in enumerate(qs):
@@ -32,6 +32,16 @@ def quatListToEuler(qs):
         euler[2, i] = e[2]
 
     return euler
+
+def eulerArraysToErrorArrays(estimate, truth):
+    errors = []
+    for i in range(3):
+        errors.append(np.minimum(np.minimum(np.abs(estimate[i] - truth[i]), np.abs(2*math.pi + estimate[i] - truth[i])),
+                      np.abs(-2*math.pi + estimate[i] - truth[i])))
+    return errors
+
+def quatListToErrorArrays(estimate, truth):
+    return eulerArraysToErrorArrays(quatListToEulerArrays(estimate), quatListToEulerArrays(truth))
 
 def rmse_euler(estimate, truth):
     def rmse(vec1, vec2):
@@ -57,63 +67,48 @@ if __name__ == '__main__':
     real_measurement = np.array([0.0, 0.0, 0.0])
     time_delta = 0.005
     true_orientation = model.Model(Quaternion(axis = [1, 0, 0], angle=0))
-    estimate = model.Model(Quaternion(axis = [1, 0, 0], angle=0))
-    true_rots = []
-    est_rots = []
-    filtered_rots = []
+    dead_reckoning_estimate = model.Model(Quaternion(axis = [1, 0, 0], angle=0))
+    true_rotations = []
+    dead_reckoning_rotation_estimates = []
+    filtered_rotation_estimates = []
 
     kalman = kalman.Kalman(true_orientation.orientation, 1.0, 0.1, 0.1)
-    for i in range(1000):
+    for i in range(4000):
 
         if (i % 10 == 0):
           real_measurement = npr.normal(0.0, 1.0, 3)
 
         gyro_measurement = gyro.measure(time_delta, real_measurement)
 
-        estimate.update(time_delta, gyro_measurement)
-        est_rots.append(estimate.orientation)
+        dead_reckoning_estimate.update(time_delta, gyro_measurement)
+        dead_reckoning_rotation_estimates.append(dead_reckoning_estimate.orientation)
 
         true_orientation.update(time_delta, real_measurement)
-        true_rots.append(true_orientation.orientation)
+        true_rotations.append(true_orientation.orientation)
         
         measured_acc = accelerometer.measure(time_delta, true_orientation.orientation)
         measured_mag = magnetometer.measure(time_delta, true_orientation.orientation)
 
-        #kalman.update(gyro_measurement, measured_acc, time_delta)
         kalman.update(gyro_measurement, measured_acc, measured_mag, time_delta)
-        filtered_rots.append(kalman.estimate)
+        filtered_rotation_estimates.append(kalman.estimate)
 
-    print "gyro bias: ", kalman.gyro_bias
-    print "accel bias: ", kalman.accelerometer_bias
+    #print "gyro bias: ", kalman.gyro_bias
+    #print "accel bias: ", kalman.accelerometer_bias
     #print "mag bias: ", kalman.magnetometer_bias
-    est_euler = quatListToEuler(est_rots)
-    true_euler = quatListToEuler(true_rots)
 
-    filtered_euler = quatListToEuler(filtered_rots)
+    dead_reckoning_errors = quatListToErrorArrays(dead_reckoning_rotation_estimates, true_rotations)
+    filtered_errors = quatListToErrorArrays(filtered_rotation_estimates, true_rotations)
 
-    errors = []
-    errors.append(np.minimum(np.minimum(np.abs(est_euler[0] - true_euler[0]), np.abs(2*math.pi + est_euler[0] - true_euler[0])),
-                    np.abs(-2*math.pi + est_euler[0] - true_euler[0])))
-    errors.append(np.minimum(np.minimum(np.abs(est_euler[1] - true_euler[1]), np.abs(2*math.pi + est_euler[1] - true_euler[1])),
-                    np.abs(-2*math.pi + est_euler[1] - true_euler[1])))
-    errors.append(np.minimum(np.minimum(np.abs(est_euler[2] - true_euler[2]), np.abs(2*math.pi + est_euler[2] - true_euler[2])),
-                    np.abs(-2*math.pi + est_euler[2] - true_euler[2])))
-
-
-    filtered_errors = []
-    filtered_errors.append(np.minimum(np.minimum(np.abs(filtered_euler[0] - true_euler[0]), np.abs(2*math.pi + filtered_euler[0] - true_euler[0])),
-                    np.abs(-2*math.pi + filtered_euler[0] - true_euler[0])))
-    filtered_errors.append(np.minimum(np.minimum(np.abs(filtered_euler[1] - true_euler[1]), np.abs(2*math.pi + filtered_euler[1] - true_euler[1])),
-                    np.abs(-2*math.pi + filtered_euler[1] - true_euler[1])))
-    filtered_errors.append(np.minimum(np.minimum(np.abs(filtered_euler[2] - true_euler[2]), np.abs(2*math.pi + filtered_euler[2] - true_euler[2])),
-                    np.abs(-2*math.pi + filtered_euler[2] - true_euler[2])))
-
-    one, = plt.plot(errors[0], label='unfiltered roll')
-    two, = plt.plot(errors[1], label='unfiltered pitch')
-    three, = plt.plot(errors[2], label='unfiltered yaw')
-    four, = plt.plot(filtered_errors[0], label='filtered roll')
-    five, = plt.plot(filtered_errors[1], label='filtered pitch')
-    six, = plt.plot(filtered_errors[2], label='filtered yaw')
-    #plt.ylabel('some numbers')
-    plt.legend(handles=[one, two, three, four, five, six])
+    unfiltered_roll, = plt.plot(dead_reckoning_errors[0], label='unfiltered roll')
+    unfiltered_pitch, = plt.plot(dead_reckoning_errors[1], label='unfiltered pitch')
+    unfiltered_yaw, = plt.plot(dead_reckoning_errors[2], label='unfiltered yaw')
+    filtered_roll, = plt.plot(filtered_errors[0], label='filtered roll')
+    filtered_pitch, = plt.plot(filtered_errors[1], label='filtered pitch')
+    filtered_yaw, = plt.plot(filtered_errors[2], label='filtered yaw')
+    plt.legend(handles=[unfiltered_roll, 
+                        unfiltered_pitch, 
+                        unfiltered_yaw, 
+                        filtered_roll, 
+                        filtered_pitch, 
+                        filtered_yaw])
     plt.show()
