@@ -33,11 +33,14 @@ def quatListToEulerArrays(qs):
 
     return euler
 
+def eulerError(estimate, truth):
+    return np.minimum(np.minimum(np.abs(estimate - truth), np.abs(2*math.pi + estimate - truth)),
+                                 np.abs(-2*math.pi + estimate - truth))
+
 def eulerArraysToErrorArrays(estimate, truth):
     errors = []
     for i in range(3):
-        errors.append(np.minimum(np.minimum(np.abs(estimate[i] - truth[i]), np.abs(2*math.pi + estimate[i] - truth[i])),
-                      np.abs(-2*math.pi + estimate[i] - truth[i])))
+        errors.append(eulerError(estimate[i], truth[i]))
     return errors
 
 def quatListToErrorArrays(estimate, truth):
@@ -56,7 +59,7 @@ if __name__ == '__main__':
     accel_bias = np.array([0.6, 0.02, 0.05])
     mag_cov = 0.001
     mag_bias = np.array([0.03, 0.08, 0.04])
-    gyro_cov = 0.001
+    gyro_cov = 0.1
     gyro_bias = np.array([0.25, 0.01, 0.05])
     gyro_bias_drift = 0.0001
     gyro = NoisyDeviceDecorator(gyro.Gyro(), gyro_bias, gyro_cov, gyro_bias_drift)
