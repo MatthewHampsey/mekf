@@ -75,7 +75,7 @@ if __name__ == '__main__':
     dead_reckoning_rotation_estimates = []
     filtered_rotation_estimates = []
 
-    kalman = kalman.Kalman(true_orientation.orientation, 1.0, 0.1, 0.1)
+    kalman = kalman.Kalman(true_orientation.orientation, 1.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1.0, 0.1)
     for i in range(4000):
 
         if (i % 10 == 0):
@@ -102,16 +102,18 @@ if __name__ == '__main__':
     dead_reckoning_errors = quatListToErrorArrays(dead_reckoning_rotation_estimates, true_rotations)
     filtered_errors = quatListToErrorArrays(filtered_rotation_estimates, true_rotations)
 
-    unfiltered_roll, = plt.plot(dead_reckoning_errors[0], label='unfiltered roll')
-    unfiltered_pitch, = plt.plot(dead_reckoning_errors[1], label='unfiltered pitch')
-    unfiltered_yaw, = plt.plot(dead_reckoning_errors[2], label='unfiltered yaw')
-    filtered_roll, = plt.plot(filtered_errors[0], label='filtered roll')
-    filtered_pitch, = plt.plot(filtered_errors[1], label='filtered pitch')
-    filtered_yaw, = plt.plot(filtered_errors[2], label='filtered yaw')
+    unfiltered_roll, = plt.plot(dead_reckoning_errors[0], label='dead reckoning roll')
+    unfiltered_pitch, = plt.plot(dead_reckoning_errors[1], label='dead reckoning pitch')
+    unfiltered_yaw, = plt.plot(dead_reckoning_errors[2], label='dead reckoning yaw')
+    filtered_roll, = plt.plot(filtered_errors[0], label='mekf roll')
+    filtered_pitch, = plt.plot(filtered_errors[1], label='mekf pitch')
+    filtered_yaw, = plt.plot(filtered_errors[2], label='mekf yaw')
     plt.legend(handles=[unfiltered_roll, 
                         unfiltered_pitch, 
                         unfiltered_yaw, 
                         filtered_roll, 
                         filtered_pitch, 
                         filtered_yaw])
+    plt.xlabel("Discrete time")
+    plt.ylabel("Error (in radians)")
     plt.show()
